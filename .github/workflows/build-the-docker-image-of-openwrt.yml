@@ -47,15 +47,10 @@ jobs:
         if: (!cancelled())
         run: |
           # Get OpenWrt file
-          #openwrt_url="$(curl \
-                            --header "authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                            -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100" |
-                            grep -o "OpenWrt_.*${{ inputs.source_branch }}.*/.*rootfs.tar.gz" |
-                            head -n 1
-                        )"
           openwrt_url="$(curl \
                             --header "authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                             -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100" |
+                            #grep -o "OpenWrt_.*${{ inputs.source_branch }}.*/.*rootfs.tar.gz" |
                             grep -o "flippy.*/.*rootfs.tar.gz" |
                             head -n 1
                         )"
