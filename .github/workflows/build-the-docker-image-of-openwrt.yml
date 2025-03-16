@@ -18,16 +18,15 @@ on:
         type: choice
         options:
           - official
-          - lede
+          - flippy
           - immortalwrt
       docker_img:
         description: "Set the docker image"
         required: false
-        default: "xchxtom/openwrt-aarch64:flippy"
+        default: "xchxtom/openwrt-aarch64"
         type: choice
         options:
-          - xchxtom/openwrt-aarch64:flippy
-
+          - xchxtom/openwrt-aarch64
 env:
   TZ: America/New_York
   MAKE_DOCKER_SH: config/docker/make_docker_image.sh
@@ -50,8 +49,8 @@ jobs:
           openwrt_url="$(curl \
                             --header "authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                             -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100" |
-                            #grep -o "OpenWrt_.*${{ inputs.source_branch }}.*/.*rootfs.tar.gz" |
-                            grep -o "flippy.*/.*rootfs.tar.gz" |
+                            grep -o "OpenWrt_.*${{ inputs.source_branch }}.*/.*rootfs.tar.gz" |
+                            #grep -o "flippy.*/.*rootfs.tar.gz" |
                             head -n 1
                         )"
           [[ -z "${openwrt_url}" ]] && echo -e "OpenWrt file not found!" && exit 1
@@ -95,4 +94,4 @@ jobs:
           push: true
           platforms: linux/arm64
           context: ${{ env.DOCKER_OUTPATH }}
-          tags: "${{ inputs.docker_img }}"
+          tags: "xchxtom/openwrt-aarch64:${{ inputs.source_branch }}"
