@@ -20,6 +20,7 @@ on:
           - official
           - flippy
           - immortalwrt
+          - istoreos
       docker_img:
         description: "Set the docker image"
         required: false
