@@ -79,7 +79,8 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 #git clone https://github.com/linkease/nas-packages.git package/luci/luci-app-quickstart
 #git clone https://github.com/linkease/nas-packages-luci.git package/network/services/quickstart
 #sed -i "s|https://downloads\.openwrt\.org|https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2|g" package/base-files/files/etc/opkg/distfeeds.conf
-
+# 修改主题
+sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|" package/base-files/files/etc/config/luci
 #
 # Apply patch
 # git apply ../config/patches/{0001*,0002*}.patch --directory=feeds/luci
