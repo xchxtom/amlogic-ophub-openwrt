@@ -13,4 +13,4 @@
 sed -i '$a src-git istore https://github.com/linkease/istore;main' feeds.conf.default
 sed -i '$a src-git linkease_nas https://github.com/linkease/nas-packages.git;master' feeds.conf.default
 sed -i '$a src-git linkease_nas_luci https://github.com/linkease/nas-packages-luci.git;main' feeds.conf.default
-sed -i '$a src-git jjm2473_apps https://github.com/jjm2473/openwrt-apps.git;main' feeds.conf.default
+#sed -i '$a src-git jjm2473_apps https://github.com/jjm2473/openwrt-apps.git;main' feeds.conf.default
