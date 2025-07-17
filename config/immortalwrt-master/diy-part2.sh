@@ -79,7 +79,7 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 #git clone https://github.com/linkease/nas-packages.git package/luci/luci-app-quickstart
 #git clone https://github.com/linkease/nas-packages-luci.git package/network/services/quickstart
 #修改软件源
-sed -i 's|https://downloads.openwrt.org|https://mirrors.tuna.tsinghua.edu.cn/openwrt|g' package/base-files/files/etc/opkg/distfeeds.conf
+sed -i 's|https://downloads.openwrt.org/releases/SNAPSHOT|https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2|g' package/base-files/files/etc/opkg/distfeeds.conf
 sed -i '$a src/gz immortalwrt_core https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/targets/armsr/armv8/packages' package/base-files/files/etc/opkg/customfeeds.conf
 sed -i '$a src/gz immortalwrt_base https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/base package/base-files/files/etc/opkg/customfeeds.conf
 sed -i '$a src/gz immortalwrt_luci https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/luci package/base-files/files/etc/opkg/customfeeds.conf
