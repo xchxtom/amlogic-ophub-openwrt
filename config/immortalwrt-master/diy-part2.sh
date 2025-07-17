@@ -79,15 +79,23 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 #git clone https://github.com/linkease/nas-packages.git package/luci/luci-app-quickstart
 #git clone https://github.com/linkease/nas-packages-luci.git package/network/services/quickstart
 #修改软件源
-sed -i 's|https://downloads.openwrt.org/releases/SNAPSHOT|https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2|g' package/base-files/files/etc/opkg/distfeeds.conf
-sed -i '$a src/gz immortalwrt_core https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/targets/armsr/armv8/packages' package/base-files/files/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_base https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/base' package/base-files/files/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_luci https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/luci' package/base-files/files/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_packages https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/packages' package/base-files/files/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_routing https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/routing' package/base-files/files/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_telephony https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/telephony' package/base-files/files/etc/opkg/customfeeds.conf
+#sed -i 's|https://downloads.openwrt.org/releases/SNAPSHOT|https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2|g' package/base-files/files/etc/opkg/distfeeds.conf
+#sed -i '$a src/gz immortalwrt_core https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/targets/armsr/armv8/packages' package/base-files/files/etc/opkg/customfeeds.conf
+#sed -i '$a src/gz immortalwrt_base https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/base' package/base-files/files/etc/opkg/customfeeds.conf
+#sed -i '$a src/gz immortalwrt_luci https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/luci' package/base-files/files/etc/opkg/customfeeds.conf
+#sed -i '$a src/gz immortalwrt_packages https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/packages' package/base-files/files/etc/opkg/customfeeds.conf
+#sed -i '$a src/gz immortalwrt_routing https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/routing' package/base-files/files/etc/opkg/customfeeds.conf
+#sed -i '$a src/gz immortalwrt_telephony https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/telephony' package/base-files/files/etc/opkg/customfeeds.conf
+# 修改 distfeeds.conf 源文件（在 feeds 目录中）
+FEEDS_PATH="feeds/packages/net/opkg/files"
+sed -i 's|https://downloads.openwrt.org|https://mirrors.cernet.edu.cn/openwrt|g' ${FEEDS_PATH}/opkg.conf
+sed -i 's|/snapshots|/releases/24.10.2|g' ${FEEDS_PATH}/opkg.conf
+
+# 修改 luci 配置（正确路径）
+LUCI_PATH="feeds/luci/modules/luci-base/root/etc/config/luci"
+[ -f "$LUCI_PATH" ] && sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|g" "$LUCI_PATH"
 # 修改主题
-sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|" package/base-files/files/etc/config/luci
+#sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|" package/base-files/files/etc/config/luci
 #
 # Apply patch
 # git apply ../config/patches/{0001*,0002*}.patch --directory=feeds/luci
