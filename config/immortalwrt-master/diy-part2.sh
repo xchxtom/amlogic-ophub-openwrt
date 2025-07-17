@@ -87,7 +87,7 @@ sed -i '$a src/gz immortalwrt_packages https://mirrors.cernet.edu.cn/openwrt/rel
 sed -i '$a src/gz immortalwrt_routing https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/routing package/base-files/files/etc/opkg/customfeeds.conf
 sed -i '$a src/gz immortalwrt_telephony https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/telephony package/base-files/files/etc/opkg/customfeeds.conf
 # 修改主题
-sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|g" package/base-files/files/etc/config/luci
+sed -i 's|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|g' package/base-files/files/etc/config/luci
 #
 # Apply patch
 # git apply ../config/patches/{0001*,0002*}.patch --directory=feeds/luci
