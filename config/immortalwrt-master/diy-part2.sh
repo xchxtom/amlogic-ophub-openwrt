@@ -79,13 +79,13 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 #git clone https://github.com/linkease/nas-packages.git package/luci/luci-app-quickstart
 #git clone https://github.com/linkease/nas-packages-luci.git package/network/services/quickstart
 #修改软件源
-sed -i 's|https://downloads.openwrt.org/releases/SNAPSHOT|https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2|g' ${common_files}/etc/opkg/distfeeds.conf
-sed -i '$a src/gz immortalwrt_core https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/targets/armsr/armv8/packages' ${common_files}/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_base https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/base ${common_files}/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_luci https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/luci ${common_files}/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_packages https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/packages ${common_files}/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_routing https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/routing ${common_files}/etc/opkg/customfeeds.conf
-sed -i '$a src/gz immortalwrt_telephony https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/telephony ${common_files}/etc/opkg/customfeeds.conf
+sed -i 's|https://downloads.openwrt.org/releases/SNAPSHOT|https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2|g' make-openwrt/openwrt-files/common-files/etc/opkg/distfeeds.conf
+sed -i '$a src/gz immortalwrt_core https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/targets/armsr/armv8/packages' make-openwrt/openwrt-files/common-files/etc/opkg/customfeeds.conf
+sed -i '$a src/gz immortalwrt_base https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/base make-openwrt/openwrt-files/common-files/etc/opkg/customfeeds.conf
+sed -i '$a src/gz immortalwrt_luci https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/luci make-openwrt/openwrt-files/common-files/etc/opkg/customfeeds.conf
+sed -i '$a src/gz immortalwrt_packages https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/packages make-openwrt/openwrt-files/common-files/etc/opkg/customfeeds.conf
+sed -i '$a src/gz immortalwrt_routing https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/routing make-openwrt/openwrt-files/common-files/etc/opkg/customfeeds.conf
+sed -i '$a src/gz immortalwrt_telephony https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/telephony make-openwrt/openwrt-files/common-files/etc/opkg/customfeeds.conf
 # 修改主题
 sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|" package/base-files/files/etc/config/luci
 #
