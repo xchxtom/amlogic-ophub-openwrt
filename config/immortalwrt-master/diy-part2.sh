@@ -90,10 +90,6 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 FEEDS_PATH="feeds/packages/net/opkg/files"
 sed -i 's|https://downloads.openwrt.org|https://mirrors.cernet.edu.cn/openwrt|g' ${FEEDS_PATH}/opkg.conf
 sed -i 's|/snapshots|/releases/24.10.2|g' ${FEEDS_PATH}/opkg.conf
-
-# 修改 luci 配置（正确路径）
-LUCI_PATH="feeds/luci/modules/luci-base/root/etc/config/luci"
-[ -f "$LUCI_PATH" ] && sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|g" "$LUCI_PATH"
 # 修改主题
 #sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|" package/base-files/files/etc/config/luci
 #
