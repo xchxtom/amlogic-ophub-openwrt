@@ -87,9 +87,9 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 #sed -i '$a src/gz immortalwrt_routing https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/routing' package/base-files/files/etc/opkg/customfeeds.conf
 #sed -i '$a src/gz immortalwrt_telephony https://mirrors.cernet.edu.cn/openwrt/releases/24.10.2/packages/aarch64_generic/telephony' package/base-files/files/etc/opkg/customfeeds.conf
 # 修改 distfeeds.conf 源文件（在 feeds 目录中）
-FEEDS_PATH="feeds/packages/net/opkg/files"
-sed -i 's|https://downloads.openwrt.org|https://mirrors.cernet.edu.cn/openwrt|g' ${FEEDS_PATH}/opkg.conf
-sed -i 's|/snapshots|/releases/24.10.2|g' ${FEEDS_PATH}/opkg.conf
+#FEEDS_PATH="feeds/packages/net/opkg/files"
+#sed -i 's|https://downloads.openwrt.org|https://mirrors.cernet.edu.cn/openwrt|g' ${FEEDS_PATH}/opkg.conf
+#sed -i 's|/snapshots|/releases/24.10.2|g' ${FEEDS_PATH}/opkg.conf
 # 修改主题
 #sed -i "s|option mediaurlbase .*|option mediaurlbase '/luci-static/argon'|" package/base-files/files/etc/config/luci
 #
