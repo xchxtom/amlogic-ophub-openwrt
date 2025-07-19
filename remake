@@ -940,6 +940,10 @@ refactor_bootfs() {
         sed -i "s|meson.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
         sed -i "s|sun.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
         sed -i "s|rk.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
+        # customize oec boot file
+        if [ "${make_openwrt[0]}" = "wxy-oect" ]; then
+            sed -i "s|FDT\s*/dtb/rockchip/rk.*\.dtb|FDT /boot/dtb/rockchip/rk3566-oec-box-wxy4.dtb|g" "${boot_extlinux_file}"
+        fi
         # If needed, such as t95z(s905x), rename delete .bak
         [[ "${BOOT_CONF}" == "extlinux.conf" ]] && mv -f ${boot_extlinux_file} ${rename_extlinux_file}
     }
