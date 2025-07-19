@@ -953,7 +953,7 @@ refactor_bootfs() {
                 break  # 只处理第一个匹配文件（若需全部复制则删除此行）
             done
             # 3. 验证文件是否复制成功
-            if [[ ! -f "${tag_bootfs}/dtb/${PLATFORM}/rk3566-oec-box-wxy4.dtb" ]]; then
+            if [[ ! -f "${tag_bootfs}/boot/dtb/${PLATFORM}/rk3566-oec-box-wxy4.dtb" ]]; then
                 echo "ERROR: Target DTB file not found!"
                 exit 1
             fi
