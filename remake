@@ -941,8 +941,8 @@ refactor_bootfs() {
         sed -i "s|sun.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
         sed -i "s|rk.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
 
-        echo "customize oec boot files..."
-        if [ "${make_openwrt[0]}" = "wxy-oect" ]; then
+        if [ "${board}" = "wxy-oect" ]; then
+            echo "customize oec boot files..."
             sed -i "s|FDT\s*/dtb/rockchip/rk.*\.dtb|FDT /boot/dtb/rockchip/rk3566-oec-box-wxy4.dtb|g" "${boot_extlinux_file}"
             dtb_source_dir="${tag_bootfs}/dtb/${PLATFORM}"
             mkdir -p ${tag_bootfs}/boot/dtb/${PLATFORM}
@@ -950,6 +950,7 @@ refactor_bootfs() {
             find "${dtb_source_dir}" -type f -name '*oec*.dtb' -print0 | while IFS= read -r -d $'\0' src_dtb; do
                 # 复制文件并重命名
                 cp -v "${src_dtb}" "${tag_bootfs}/boot/dtb/${PLATFORM}/rk3566-oec-box-wxy4.dtb"
+                cp -v "${src_dtb}" "${tag_bootfs}/dtb/${PLATFORM}/rk3566-oec-box-wxy4.dtb"
                 break  # 只处理第一个匹配文件（若需全部复制则删除此行）
             done
             # 3. 验证文件是否复制成功
@@ -957,8 +958,9 @@ refactor_bootfs() {
                 echo "ERROR: Target DTB file not found!"
                 exit 1
             fi
-        fi
         echo "customize oec boot files done"
+        fi
+
         # If needed, such as t95z(s905x), rename delete .bak
         [[ "${BOOT_CONF}" == "extlinux.conf" ]] && mv -f ${boot_extlinux_file} ${rename_extlinux_file}
     }
