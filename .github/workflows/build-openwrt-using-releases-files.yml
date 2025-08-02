@@ -28,7 +28,7 @@ on:
           - all
           - top50
           - rest50
-          - a311d-oes_s905d_s905x3_s922x-ct2000_wxy-oect
+          - a311d-oes_wxy-oect
           - a311d
           - a311d-oes
           - alark35-3500
