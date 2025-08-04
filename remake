@@ -943,7 +943,7 @@ refactor_bootfs() {
 
         if [ "${board}" = "wxy-oect" ]; then
             echo "customize oec boot files..."
-            sed -i "s|FDT\s*/dtb/rockchip/rk.*\.dtb|FDT /boot/dtb/rockchip/rk3566-oec-box-wxy4.dtb|g" "${boot_extlinux_file}"
+            sed -i "s|FDT\s*/dtb/rockchip/rk.*\.dtb|FDT /dtb/rockchip/rk3566-oec-box-wxy4.dtb|g" "${boot_extlinux_file}"
             dtb_source_dir="${tag_bootfs}/dtb/${PLATFORM}"
             mkdir -p ${tag_bootfs}/boot/dtb/${PLATFORM}
             # 2. 查找并复制包含"oec"的DTB文件
