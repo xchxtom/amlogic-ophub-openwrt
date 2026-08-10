@@ -145,72 +145,57 @@ adjust_settings() {
         echo "───────────────────────────────────────────────────────────────────────" >>${tmp_path}/etc/banner
     }
     # ==============================================================================
-    # ⬇️【Docker 安全补丁 1】：移除看门狗，防止停止容器时宿主机硬重启 ⬇️
+    # ⬇️【镜像级防护 1】：设置容器环境变量与禁用硬件看门狗/硬件重启 ⬇️
     # ==============================================================================
-    echo -e "${INFO} Removing watchdog service for Docker safety..."
-    rm -f ${tmp_path}/etc/init.d/watchdog
-    rm -f ${tmp_path}/etc/rc.d/S*watchdog 2>/dev/null || true
-    if [ -f "${tmp_path}/etc/config/system" ]; then
-        sed -i '/option watchdog/d' ${tmp_path}/etc/config/system
+    echo -e "${INFO} Applying Docker-native container patches..."
+
+    # 1. 告诉 procd 和系统当前运行于 Docker 环境
+    mkdir -p ${tmp_path}/etc/profile.d
+    echo "export container=docker" > ${tmp_path}/etc/profile.d/docker.sh
+
+    # 2. 修改 /etc/inittab，取消 procd 在 shutdown/ctrlaltdel 时的硬件重启响应
+    if [ -f "${tmp_path}/etc/inittab" ]; then
+        sed -i 's|::ctrlaltdel:/sbin/reboot|#::ctrlaltdel:/sbin/reboot|g' ${tmp_path}/etc/inittab
+        sed -i 's|::shutdown:/etc/init.d/rcS K shutdown|::shutdown:/bin/true|g' ${tmp_path}/etc/inittab
     fi
 
-    # ==============================================================================
-    # ⬇️【Docker 安全补丁 2】：重定向 reboot/poweroff 命令到 PID 1 退出 ⬇️
-    # ==============================================================================
-    echo -e "${INFO} Patching reboot/poweroff commands for Docker safety..."
-    rm -f ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
-
-    cat << 'EOF' > ${tmp_path}/sbin/reboot
-#!/bin/sh
-echo "[Docker-Safety] Container reboot requested. Terminating PID 1..."
-sync
-kill -TERM 1 2>/dev/null || kill -KILL 1
-EOF
-
-    cat << 'EOF' > ${tmp_path}/sbin/poweroff
-#!/bin/sh
-echo "[Docker-Safety] Container poweroff requested. Stopping PID 1..."
-sync
-kill -TERM 1 2>/dev/null || kill -KILL 1
-EOF
-
-    ln -sf reboot ${tmp_path}/sbin/halt
-    chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
-    # ==============================================================================
-    # ⬇️【深层补丁 1】：全面清除 RootFS 中可能调用 SysRq 强制重启宿主机的脚本 ⬇️
-    # ==============================================================================
-    echo -e "${INFO} Removing SysRq trigger scripts from rootfs..."
-    # 搜索并清除包含 sysrq-trigger 的关机/重启脚本
-    grep -rl "sysrq-trigger" ${tmp_path}/ 2>/dev/null | xargs rm -f 2>/dev/null || true
-
-    # ==============================================================================
-    # ⬇️【深层补丁 2】：禁用 uci 系统层面的 procd 看门狗 ⬇️
-    # ==============================================================================
+    # 3. 禁用 uci 中的 system 看门狗与硬件 reboot 逻辑
     if [ -f "${tmp_path}/etc/config/system" ]; then
-        echo -e "${INFO} Disabling procd watchdog in system config..."
         sed -i '/watchdog/d' ${tmp_path}/etc/config/system
         echo "    option watchdog '0'" >> ${tmp_path}/etc/config/system
     fi
 
     # ==============================================================================
-    # ⬇️【深层补丁 3】：创建容器启动入口脚本，屏蔽 /dev/watchdog 节点 ⬇️
+    # ⬇️【镜像级防护 2】：拦截 ubus 和命令行重启，防止 procd 触发 Syscall ⬇️
     # ==============================================================================
-    echo -e "${INFO} Injecting Docker entrypoint fix to block host watchdog access..."
-    
-    # 写入一个在 procd 启动前执行的伪装脚本，将 watchdog 节点屏蔽或重定向到 /dev/null
-    cat << 'EOF' > ${tmp_path}/etc/preinit_block_watchdog.sh
-#!/bin/sh
-# 彻底移除容器内部从宿主机映射过来的看门狗节点，防止 procd 误触
-rm -f /dev/watchdog /dev/watchdog0 2>/dev/null
-mknod /dev/watchdog c 1 3 2>/dev/null || true
-mknod /dev/watchdog0 c 1 3 2>/dev/null || true
-EOF
-    chmod +x ${tmp_path}/etc/preinit_block_watchdog.sh
+    echo -e "${INFO} Overriding reboot/poweroff commands with safe container exit..."
 
-    # 将该脚本挂载到 OpenWrt preinit 初始化阶段的最最开头
-    if [ -f "${tmp_path}/lib/preinit/00_preinit.conf" ]; then
-        sed -i '1i\/etc/preinit_block_watchdog.sh' ${tmp_path}/lib/preinit/00_preinit.conf
-    fi
+    # 移除原有的二进制文件/链接
+    rm -f ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
+
+    # 写入安全版 reboot：优雅停止服务后强制退出容器进程，绝不让 procd 走向最后一步 Syscall
+    cat << 'EOF' > ${tmp_path}/sbin/reboot
+#!/bin/sh
+echo "[Docker-OpenWrt] Safe rebooting container..."
+sync
+# 停止 OpenWrt 主要服务，但不触发 procd 的硬件关机流程
+/etc/init.d/rcS K shutdown 2>/dev/null
+# 强制终止所有容器内进程，让 Docker 捕获到容器退出并重新拉起 (--restart always)
+kill -9 -1 2>/dev/null || kill -KILL 1
+EOF
+
+    cat << 'EOF' > ${tmp_path}/sbin/poweroff
+#!/bin/sh
+echo "[Docker-OpenWrt] Safe powering off container..."
+sync
+/etc/init.d/rcS K shutdown 2>/dev/null
+kill -9 -1 2>/dev/null || kill -KILL 1
+EOF
+
+    ln -sf reboot ${tmp_path}/sbin/halt
+    chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
+    # ==============================================================================
+}
 }
 
 make_dockerimg() {
@@ -230,9 +215,21 @@ make_dockerimg() {
     cd ${current_path}
 
     # Add Dockerfile
+    #cp -f ${docker_path}/Dockerfile ${out_path}
+    #[[ "${?}" -eq "0" ]] || error_msg "Dockerfile addition failed."
+    #echo -e "${INFO} Dockerfile added successfully."
+    # =========================================================
+    # ⬇️ 在这里修改 Dockerfile 处理逻辑 ⬇️
+    # =========================================================
+    # 复制原始的 Dockerfile 到输出目录
     cp -f ${docker_path}/Dockerfile ${out_path}
     [[ "${?}" -eq "0" ]] || error_msg "Dockerfile addition failed."
+    
+    # 🔴 [新增代码] 向复制过去的 Dockerfile 追加环境变量，防宿主机重启
+    echo "ENV container=docker" >> ${out_path}/Dockerfile
+    
     echo -e "${INFO} Dockerfile added successfully."
+    # =========================================================
 
     # Remove temporary directory
     rm -rf ${tmp_path}
