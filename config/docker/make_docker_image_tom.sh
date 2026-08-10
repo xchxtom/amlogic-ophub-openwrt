@@ -164,7 +164,26 @@ adjust_settings() {
         sed -i '/watchdog/d' ${tmp_path}/etc/config/system
         echo "    option watchdog '0'" >> ${tmp_path}/etc/config/system
     fi
+    # ==============================================================================
+    # ⬇️【核心根治】防止几分钟后宿主机看门狗超时硬重启 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Injecting preinit hook to mask host /dev/watchdog..."
 
+    # 1. 创建 preinit 早期启动钩子：在 procd 初始化前，将看门狗节点重定向至 /dev/null
+    mkdir -p ${tmp_path}/lib/preinit
+    cat << 'EOF' > ${tmp_path}/lib/preinit/00_disable_watchdog.sh
+#!/bin/sh
+# 容器启动极早期：删除容器内的宿主机看门狗节点，并用空设备(/dev/null)替换
+rm -f /dev/watchdog /dev/watchdog0
+mknod /dev/watchdog c 1 3 2>/dev/null || true
+mknod /dev/watchdog0 c 1 3 2>/dev/null || true
+EOF
+    chmod +x ${tmp_path}/lib/preinit/00_disable_watchdog.sh
+
+    # 2. 彻底清除 uci system 配置中的 watchdog 选项
+    if [ -f "${tmp_path}/etc/config/system" ]; then
+        sed -i '/watchdog/d' ${tmp_path}/etc/config/system
+    fi
     # ==============================================================================
     # ⬇️【镜像级防护 2】：拦截 ubus 和命令行重启，防止 procd 触发 Syscall ⬇️
     # ==============================================================================
