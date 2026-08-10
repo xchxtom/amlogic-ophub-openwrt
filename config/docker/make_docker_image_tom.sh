@@ -145,61 +145,40 @@ adjust_settings() {
         echo "───────────────────────────────────────────────────────────────────────" >>${tmp_path}/etc/banner
     }
     # ==============================================================================
-    # ⬇️【镜像级防护 1】：设置容器环境变量与禁用硬件看门狗/硬件重启 ⬇️
+    # ⬇️【终极防护 1】：完全屏蔽所有看门狗节点 (/dev/watchdog & /dev/watchdog0) ⬇️
     # ==============================================================================
-    echo -e "${INFO} Applying Docker-native container patches..."
-
-    # 1. 告诉 procd 和系统当前运行于 Docker 环境
-    mkdir -p ${tmp_path}/etc/profile.d
-    echo "export container=docker" > ${tmp_path}/etc/profile.d/docker.sh
-
-    # 2. 修改 /etc/inittab，取消 procd 在 shutdown/ctrlaltdel 时的硬件重启响应
-    if [ -f "${tmp_path}/etc/inittab" ]; then
-        sed -i 's|::ctrlaltdel:/sbin/reboot|#::ctrlaltdel:/sbin/reboot|g' ${tmp_path}/etc/inittab
-        sed -i 's|::shutdown:/etc/init.d/rcS K shutdown|::shutdown:/bin/true|g' ${tmp_path}/etc/inittab
-    fi
-
-    # 3. 禁用 uci 中的 system 看门狗与硬件 reboot 逻辑
-    if [ -f "${tmp_path}/etc/config/system" ]; then
-        sed -i '/watchdog/d' ${tmp_path}/etc/config/system
-        echo "    option watchdog '0'" >> ${tmp_path}/etc/config/system
-    fi
-    # ==============================================================================
-    # ⬇️【核心根治】防止几分钟后宿主机看门狗超时硬重启 ⬇️
-    # ==============================================================================
-    echo -e "${INFO} Injecting preinit hook to mask host /dev/watchdog..."
-
-    # 1. 创建 preinit 早期启动钩子：在 procd 初始化前，将看门狗节点重定向至 /dev/null
+    echo -e "${INFO} Injecting preinit hook to mask host watchdogs..."
     mkdir -p ${tmp_path}/lib/preinit
     cat << 'EOF' > ${tmp_path}/lib/preinit/00_disable_watchdog.sh
 #!/bin/sh
-# 容器启动极早期：删除容器内的宿主机看门狗节点，并用空设备(/dev/null)替换
-rm -f /dev/watchdog /dev/watchdog0
+rm -f /dev/watchdog /dev/watchdog0 /dev/misc/watchdog
 mknod /dev/watchdog c 1 3 2>/dev/null || true
 mknod /dev/watchdog0 c 1 3 2>/dev/null || true
 EOF
     chmod +x ${tmp_path}/lib/preinit/00_disable_watchdog.sh
 
-    # 2. 彻底清除 uci system 配置中的 watchdog 选项
-    if [ -f "${tmp_path}/etc/config/system" ]; then
-        sed -i '/watchdog/d' ${tmp_path}/etc/config/system
-    fi
     # ==============================================================================
-    # ⬇️【镜像级防护 2】：拦截 ubus 和命令行重启，防止 procd 触发 Syscall ⬇️
+    # ⬇️【终极防护 2】：阻止容器修改宿主机的 kernel.panic，防止驱动报错导致物理机硬重启 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Neutralizing kernel panic settings in rootfs..."
+    sed -i '/kernel.panic/d' ${tmp_path}/etc/sysctl.conf 2>/dev/null || true
+    rm -f ${tmp_path}/etc/sysctl.d/*panic* 2>/dev/null || true
+    # 覆盖掉 init 脚本对 sysctl panic 的修改
+    if [ -f "${tmp_path}/etc/init.d/boot" ]; then
+        sed -i 's/sysctl -w kernel.panic.*/# disabled panic/g' ${tmp_path}/etc/init.d/boot
+    fi
+
+    # ==============================================================================
+    # ⬇️【终极防护 3】：重定向 reboot/poweroff 为安全进程退出 ⬇️
     # ==============================================================================
     echo -e "${INFO} Overriding reboot/poweroff commands with safe container exit..."
-
-    # 移除原有的二进制文件/链接
     rm -f ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
 
-    # 写入安全版 reboot：优雅停止服务后强制退出容器进程，绝不让 procd 走向最后一步 Syscall
     cat << 'EOF' > ${tmp_path}/sbin/reboot
 #!/bin/sh
 echo "[Docker-OpenWrt] Safe rebooting container..."
 sync
-# 停止 OpenWrt 主要服务，但不触发 procd 的硬件关机流程
 /etc/init.d/rcS K shutdown 2>/dev/null
-# 强制终止所有容器内进程，让 Docker 捕获到容器退出并重新拉起 (--restart always)
 kill -9 -1 2>/dev/null || kill -KILL 1
 EOF
 
@@ -213,7 +192,6 @@ EOF
 
     ln -sf reboot ${tmp_path}/sbin/halt
     chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
-    # ==============================================================================
 }
 
 make_dockerimg() {
