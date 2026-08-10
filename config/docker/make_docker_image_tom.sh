@@ -145,9 +145,24 @@ adjust_settings() {
         echo "───────────────────────────────────────────────────────────────────────" >>${tmp_path}/etc/banner
     }
     # ==============================================================================
-    # ⬇️【终极防护 1】：完全屏蔽所有看门狗节点 (/dev/watchdog & /dev/watchdog0) ⬇️
+    # ⬇️【核心修复 1】：剔除磁盘扫描、自动挂载、 Swap 服务，防止篡改宿主机分区 ⬇️
     # ==============================================================================
-    echo -e "${INFO} Injecting preinit hook to mask host watchdogs..."
+    echo -e "${INFO} Disabling fstools, blockd and swap services..."
+    rm -f ${tmp_path}/etc/init.d/fstab ${tmp_path}/etc/init.d/blockd
+    rm -f ${tmp_path}/sbin/block ${tmp_path}/sbin/mount_root
+    rm -f ${tmp_path}/etc/config/fstab
+
+    # ==============================================================================
+    # ⬇️【核心修复 2】：删除 cpufreq 和 kmod 自动加载，防止篡改宿主机 CPU 调频和内核 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Removing cpufreq and kmod init scripts..."
+    rm -f ${tmp_path}/etc/init.d/cpufreq ${tmp_path}/etc/config/cpufreq
+    rm -f ${tmp_path}/etc/init.d/kmod
+
+    # ==============================================================================
+    # ⬇️【核心修复 3】：在 preinit 屏蔽看门狗与敏感硬件节点 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Injecting preinit hook to mask host watchdogs and sysfs..."
     mkdir -p ${tmp_path}/lib/preinit
     cat << 'EOF' > ${tmp_path}/lib/preinit/00_disable_watchdog.sh
 #!/bin/sh
@@ -157,21 +172,14 @@ mknod /dev/watchdog0 c 1 3 2>/dev/null || true
 EOF
     chmod +x ${tmp_path}/lib/preinit/00_disable_watchdog.sh
 
-    # ==============================================================================
-    # ⬇️【终极防护 2】：阻止容器修改宿主机的 kernel.panic，防止驱动报错导致物理机硬重启 ⬇️
-    # ==============================================================================
-    echo -e "${INFO} Neutralizing kernel panic settings in rootfs..."
+    # 清理 kernel.panic
     sed -i '/kernel.panic/d' ${tmp_path}/etc/sysctl.conf 2>/dev/null || true
     rm -f ${tmp_path}/etc/sysctl.d/*panic* 2>/dev/null || true
-    # 覆盖掉 init 脚本对 sysctl panic 的修改
-    if [ -f "${tmp_path}/etc/init.d/boot" ]; then
-        sed -i 's/sysctl -w kernel.panic.*/# disabled panic/g' ${tmp_path}/etc/init.d/boot
-    fi
 
     # ==============================================================================
-    # ⬇️【终极防护 3】：重定向 reboot/poweroff 为安全进程退出 ⬇️
+    # ⬇️【核心修复 4】：安全的 reboot/poweroff 重定向 ⬇️
     # ==============================================================================
-    echo -e "${INFO} Overriding reboot/poweroff commands with safe container exit..."
+    echo -e "${INFO} Overriding reboot/poweroff commands..."
     rm -f ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
 
     cat << 'EOF' > ${tmp_path}/sbin/reboot
