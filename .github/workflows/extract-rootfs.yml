@@ -47,24 +47,71 @@ jobs:
 
           echo "==> 解压 .gz (通过管道解压避免 trailing garbage 报错退出)..."
           gzip -dc "$LATEST_FILE" > "$IMG_FILE" || true
-
+          if [ ! -s "$IMG_FILE" ]; then
+            echo "错误：镜像解压失败，文件为空！"
+            exit 1
+          fi
           echo "==> 使用 7z 解析磁盘镜像分区..."
+          mkdir -p extracted_img
           7z x -y "$IMG_FILE" -o"extracted_img"
+          echo "==> 自动检测 RootFS 分区文件与文件系统类型..."
+          TARGET_PART=""
+          FS_TYPE=""
 
-          echo "==> 查找 SquashFS 主分区文件..."
-          # 寻找大于 10MB 的 SquashFS 分区镜像
-          SQUASHFS_FILE=$(find extracted_img -type f -size +10M | head -n 1)
+          for f in extracted_img/*; do
+            TYPE_INFO=$(file "$f")
+            echo "检查分区文件: $f -> $TYPE_INFO"
+            if echo "$TYPE_INFO" | grep -qi "Squashfs"; then
+              TARGET_PART="$f"
+              FS_TYPE="squashfs"
+              break
+            elif echo "$TYPE_INFO" | grep -qi "ext[2-4]"; then
+              TARGET_PART="$f"
+              FS_TYPE="ext4"
+              break
+            fi
+          done
+          # 如果 file 未能识别明确格式，默认获取大于 10MB 的主要分区文件
+          if [ -z "$TARGET_PART" ]; then
+            TARGET_PART=$(find extracted_img -type f -size +10M | head -n 1)
+          fi
 
-          if [ -z "$SQUASHFS_FILE" ]; then
-            echo "错误：未找到 SquashFS 分区！"
+          if [ -z "$TARGET_PART" ]; then
+            echo "错误：未找到有效的主分区文件！"
             exit 1
           fi
 
-          echo "==> 提取 RootFS 目录..."
-          sudo unsquashfs -d rootfs "$SQUASHFS_FILE"
+          echo "==> 目标分区文件: $TARGET_PART (检测类型: ${FS_TYPE:-未知})"
+
+          rm -rf rootfs
+          mkdir -p rootfs
+
+          # 根据检测结果采用不同的提取策略
+          if [ "$FS_TYPE" = "squashfs" ]; then
+            echo "==> 使用 unsquashfs 提取 SquashFS 文件系统..."
+            sudo unsquashfs -f -d rootfs "$TARGET_PART"
+          elif [ "$FS_TYPE" = "ext4" ]; then
+            echo "==> 使用 Loop 挂载提取 Ext4 文件系统..."
+            mkdir -p mnt_tmp
+            sudo mount -o loop "$TARGET_PART" mnt_tmp
+            sudo cp -a mnt_tmp/. rootfs/
+            sudo umount mnt_tmp
+            rm -rf mnt_tmp
+          else
+            echo "==> 未知类型，尝试通用兼容提取..."
+            if sudo unsquashfs -f -d rootfs "$TARGET_PART" 2>/dev/null; then
+              echo "SquashFS 提取成功！"
+            else
+              echo "SquashFS 识别失败，尝试 Loop 挂载..."
+              mkdir -p mnt_tmp
+              sudo mount -o loop "$TARGET_PART" mnt_tmp
+              sudo cp -a mnt_tmp/. rootfs/
+              sudo umount mnt_tmp
+              rm -rf mnt_tmp
+            fi
+          fi
 
           echo "==> 打包 RootFS 为 $TAR_FILE..."
-          # 进入 rootfs 内部打包，保持根目录结构干净
           cd rootfs
           sudo tar -czf "../$TAR_FILE" .
           cd ..
