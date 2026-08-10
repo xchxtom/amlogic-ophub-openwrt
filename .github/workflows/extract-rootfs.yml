@@ -1,0 +1,90 @@
+name: Extract iStoreOS RootFS
+
+on:
+  workflow_dispatch:          # 支持手动点击运行
+  #schedule:
+    #- cron: '0 0 * * *'        # 每天 UTC 0:00 (北京时间 08:00) 自动检查并更新
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write         # 必须具备 Release 写入权限
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl p7zip-full squashfs-tools
+
+      - name: Fetch Latest Firmware and Extract RootFS
+        id: extract
+        run: |
+          BASE_URL="https://fw.koolcenter.com/iStoreOS/armsr/"
+          
+          echo "==> 获取最新固件文件名..."
+          LATEST_FILE=$(curl -s "$BASE_URL" | grep -oE 'istoreos-[0-9a-zA-Z\.\-]+armsr-squashfs-combined-efi\.img\.gz' | head -n 1)
+          
+          if [ -z "$LATEST_FILE" ]; then
+            echo "错误：未能获取到最新的固件文件名！"
+            exit 1
+          fi
+
+          FILE_URL="${BASE_URL}${LATEST_FILE}"
+          RAW_NAME="${LATEST_FILE%.img.gz}"
+          IMG_FILE="${LATEST_FILE%.gz}"
+          TAR_FILE="${RAW_NAME}-rootfs.tar.gz"
+
+          echo "最新文件名: $LATEST_FILE"
+          echo "RootFS打包文件名: $TAR_FILE"
+
+          echo "==> 开始下载固件..."
+          curl -C - -O "$FILE_URL"
+
+          echo "==> 解压 .gz..."
+          gunzip -f -k "$LATEST_FILE"
+
+          echo "==> 使用 7z 解析磁盘镜像分区..."
+          7z x -y "$IMG_FILE" -o"extracted_img"
+
+          echo "==> 查找 SquashFS 主分区文件..."
+          # 寻找大于 10MB 的 SquashFS 分区镜像
+          SQUASHFS_FILE=$(find extracted_img -type f -size +10M | head -n 1)
+
+          if [ -z "$SQUASHFS_FILE" ]; then
+            echo "错误：未找到 SquashFS 分区！"
+            exit 1
+          fi
+
+          echo "==> 提取 RootFS 目录..."
+          sudo unsquashfs -d rootfs "$SQUASHFS_FILE"
+
+          echo "==> 打包 RootFS 为 $TAR_FILE..."
+          # 进入 rootfs 内部打包，保持根目录结构干净
+          cd rootfs
+          sudo tar -czf "../$TAR_FILE" .
+          cd ..
+
+          # 将变量导出供后续步骤使用
+          echo "TAR_FILE=$TAR_FILE" >> $GITHUB_ENV
+          echo "RAW_NAME=$RAW_NAME" >> $GITHUB_ENV
+          echo "LATEST_FILE=$LATEST_FILE" >> $GITHUB_ENV
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: OpenWrt_istoreos_rootfs
+          name: "iStoreOS ARMSR RootFS"
+          body: |
+            ## iStoreOS RootFS 提取归档
+            - **原始固件**: `${{ env.LATEST_FILE }}`
+            - **提取时间**: `${{ env.RAW_NAME }}`
+            - **打包文件**: `${{ env.TAR_FILE }}`
+          files: ${{ env.TAR_FILE }}
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
