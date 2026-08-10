@@ -145,14 +145,21 @@ adjust_settings() {
         echo "───────────────────────────────────────────────────────────────────────" >>${tmp_path}/etc/banner
     }
     # ==============================================================================
-    # ⬇️【新增防宿主机重启补丁】替换 reboot / poweroff / halt 命令 ⬇️
+    # ⬇️【Docker 安全补丁 1】：移除看门狗，防止停止容器时宿主机硬重启 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Removing watchdog service for Docker safety..."
+    rm -f ${tmp_path}/etc/init.d/watchdog
+    rm -f ${tmp_path}/etc/rc.d/S*watchdog 2>/dev/null || true
+    if [ -f "${tmp_path}/etc/config/system" ]; then
+        sed -i '/option watchdog/d' ${tmp_path}/etc/config/system
+    fi
+
+    # ==============================================================================
+    # ⬇️【Docker 安全补丁 2】：重定向 reboot/poweroff 命令到 PID 1 退出 ⬇️
     # ==============================================================================
     echo -e "${INFO} Patching reboot/poweroff commands for Docker safety..."
-    
-    # 1. 删除指向 Busybox/procd 的原有软链接
     rm -f ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
 
-    # 2. 写入安全的 reboot 脚本
     cat << 'EOF' > ${tmp_path}/sbin/reboot
 #!/bin/sh
 echo "[Docker-Safety] Container reboot requested. Terminating PID 1..."
@@ -160,7 +167,6 @@ sync
 kill -TERM 1 2>/dev/null || kill -KILL 1
 EOF
 
-    # 3. 写入安全的 poweroff 脚本
     cat << 'EOF' > ${tmp_path}/sbin/poweroff
 #!/bin/sh
 echo "[Docker-Safety] Container poweroff requested. Stopping PID 1..."
@@ -168,7 +174,6 @@ sync
 kill -TERM 1 2>/dev/null || kill -KILL 1
 EOF
 
-    # 4. 建立链接并赋予执行权限
     ln -sf reboot ${tmp_path}/sbin/halt
     chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
     # ==============================================================================
