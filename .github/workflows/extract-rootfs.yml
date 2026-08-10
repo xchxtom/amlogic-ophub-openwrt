@@ -121,17 +121,23 @@ jobs:
           echo "RAW_NAME=$RAW_NAME" >> $GITHUB_ENV
           echo "LATEST_FILE=$LATEST_FILE" >> $GITHUB_ENV
 
+      - name: Delete Old Release and Tag
+        run: |
+          echo "==> 删除旧的 Release 和 Tag 以重置时间戳与附件列表..."
+          gh release delete OpenWrt_istoreos_rootfs --cleanup-tag -y || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: OpenWrt_istoreos_rootfs
           name: "iStoreOS ARMSR RootFS"
           body: |
-            ## iStoreOS RootFS 提取归档
-            - **原始固件**: `${{ env.LATEST_FILE }}`
-            - **提取时间**: `${{ env.RAW_NAME }}`
-            - **打包文件**: `${{ env.TAR_FILE }}`
+            ## iStoreOS RootFS 最新提取
+            - **文件名称**: `${{ env.TAR_FILE }}`
+            - **源固件包**: `${{ env.LATEST_FILE }}`
+            - **更新时间**: `${{ env.RAW_NAME }}`
           files: ${{ env.TAR_FILE }}
-          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
