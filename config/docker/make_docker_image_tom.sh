@@ -214,21 +214,9 @@ make_dockerimg() {
     cd ${current_path}
 
     # Add Dockerfile
-    #cp -f ${docker_path}/Dockerfile ${out_path}
-    #[[ "${?}" -eq "0" ]] || error_msg "Dockerfile addition failed."
-    #echo -e "${INFO} Dockerfile added successfully."
-    # =========================================================
-    # ⬇️ 在这里修改 Dockerfile 处理逻辑 ⬇️
-    # =========================================================
-    # 复制原始的 Dockerfile 到输出目录
     cp -f ${docker_path}/Dockerfile ${out_path}
     [[ "${?}" -eq "0" ]] || error_msg "Dockerfile addition failed."
-    
-    # 🔴 [新增代码] 向复制过去的 Dockerfile 追加环境变量，防宿主机重启
-    echo "ENV container=docker" >> ${out_path}/Dockerfile
-    
     echo -e "${INFO} Dockerfile added successfully."
-    # =========================================================
 
     # Remove temporary directory
     rm -rf ${tmp_path}
