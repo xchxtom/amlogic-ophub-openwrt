@@ -45,8 +45,8 @@ jobs:
           echo "==> 开始下载固件..."
           curl -C - -O "$FILE_URL"
 
-          echo "==> 解压 .gz..."
-          gunzip -f -k "$LATEST_FILE"
+          echo "==> 解压 .gz (通过管道解压避免 trailing garbage 报错退出)..."
+          gzip -dc "$LATEST_FILE" > "$IMG_FILE" || true
 
           echo "==> 使用 7z 解析磁盘镜像分区..."
           7z x -y "$IMG_FILE" -o"extracted_img"
