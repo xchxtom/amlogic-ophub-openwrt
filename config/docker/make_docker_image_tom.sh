@@ -145,39 +145,40 @@ adjust_settings() {
         echo "───────────────────────────────────────────────────────────────────────" >>${tmp_path}/etc/banner
     }
     # ==============================================================================
-    # ⬇️【核心修复 1】：剔除磁盘扫描、自动挂载、 Swap 服务，防止篡改宿主机分区 ⬇️
+    # ⬇️【纯镜像防护 1】：生成 Docker Entrypoint 入口拦截脚本 ⬇️
     # ==============================================================================
-    echo -e "${INFO} Disabling fstools, blockd and swap services..."
-    rm -f ${tmp_path}/etc/init.d/fstab ${tmp_path}/etc/init.d/blockd
-    rm -f ${tmp_path}/sbin/block ${tmp_path}/sbin/mount_root
-    rm -f ${tmp_path}/etc/config/fstab
-
-    # ==============================================================================
-    # ⬇️【核心修复 2】：删除 cpufreq 和 kmod 自动加载，防止篡改宿主机 CPU 调频和内核 ⬇️
-    # ==============================================================================
-    echo -e "${INFO} Removing cpufreq and kmod init scripts..."
-    rm -f ${tmp_path}/etc/init.d/cpufreq ${tmp_path}/etc/config/cpufreq
-    rm -f ${tmp_path}/etc/init.d/kmod
-
-    # ==============================================================================
-    # ⬇️【核心修复 3】：在 preinit 屏蔽看门狗与敏感硬件节点 ⬇️
-    # ==============================================================================
-    echo -e "${INFO} Injecting preinit hook to mask host watchdogs and sysfs..."
-    mkdir -p ${tmp_path}/lib/preinit
-    cat << 'EOF' > ${tmp_path}/lib/preinit/00_disable_watchdog.sh
+    echo -e "${INFO} Injecting custom /docker-entrypoint.sh..."
+    cat << 'EOF' > ${tmp_path}/docker-entrypoint.sh
 #!/bin/sh
+# 1. 在 OpenWrt /sbin/init (procd) 运行前，抢先替换看门狗节点为 /dev/null (1, 3)
 rm -f /dev/watchdog /dev/watchdog0 /dev/misc/watchdog
 mknod /dev/watchdog c 1 3 2>/dev/null || true
 mknod /dev/watchdog0 c 1 3 2>/dev/null || true
-EOF
-    chmod +x ${tmp_path}/lib/preinit/00_disable_watchdog.sh
 
-    # 清理 kernel.panic
-    sed -i '/kernel.panic/d' ${tmp_path}/etc/sysctl.conf 2>/dev/null || true
-    rm -f ${tmp_path}/etc/sysctl.d/*panic* 2>/dev/null || true
+# 2. 尝试向物理看门狗发送 Magic Close 字符 'V' (防止宿主机处于历史残留倒计时)
+echo -n "V" > /dev/watchdog 2>/dev/null || true
+
+# 3. 屏蔽内核 panic 自动重启
+sysctl -w kernel.panic=0 2>/dev/null || true
+
+# 4. 将执行权交给 OpenWrt 原生的 /sbin/init
+exec /sbin/init "$@"
+EOF
+
+    chmod +x ${tmp_path}/docker-entrypoint.sh
 
     # ==============================================================================
-    # ⬇️【核心修复 4】：安全的 reboot/poweroff 重定向 ⬇️
+    # ⬇️【纯镜像防护 2】：彻底禁用 OpenWrt 配置文件中的看门狗逻辑 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Removing watchdog section from OpenWrt system config..."
+    if [ -f "${tmp_path}/etc/config/system" ]; then
+        # 删掉 config system 中的 watchdog 轮询配置
+        sed -i '/watchdog/d' ${tmp_path}/etc/config/system
+    fi
+    rm -f ${tmp_path}/etc/init.d/watchdog 2>/dev/null || true
+
+    # ==============================================================================
+    # ⬇️【核心修复 3】：安全的 reboot/poweroff 重定向 ⬇️
     # ==============================================================================
     echo -e "${INFO} Overriding reboot/poweroff commands..."
     rm -f ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
