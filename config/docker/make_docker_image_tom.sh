@@ -177,6 +177,40 @@ EOF
     ln -sf reboot ${tmp_path}/sbin/halt
     chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
     # ==============================================================================
+    # ⬇️【深层补丁 1】：全面清除 RootFS 中可能调用 SysRq 强制重启宿主机的脚本 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Removing SysRq trigger scripts from rootfs..."
+    # 搜索并清除包含 sysrq-trigger 的关机/重启脚本
+    grep -rl "sysrq-trigger" ${tmp_path}/ 2>/dev/null | xargs rm -f 2>/dev/null || true
+
+    # ==============================================================================
+    # ⬇️【深层补丁 2】：禁用 uci 系统层面的 procd 看门狗 ⬇️
+    # ==============================================================================
+    if [ -f "${tmp_path}/etc/config/system" ]; then
+        echo -e "${INFO} Disabling procd watchdog in system config..."
+        sed -i '/watchdog/d' ${tmp_path}/etc/config/system
+        echo "    option watchdog '0'" >> ${tmp_path}/etc/config/system
+    fi
+
+    # ==============================================================================
+    # ⬇️【深层补丁 3】：创建容器启动入口脚本，屏蔽 /dev/watchdog 节点 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Injecting Docker entrypoint fix to block host watchdog access..."
+    
+    # 写入一个在 procd 启动前执行的伪装脚本，将 watchdog 节点屏蔽或重定向到 /dev/null
+    cat << 'EOF' > ${tmp_path}/etc/preinit_block_watchdog.sh
+#!/bin/sh
+# 彻底移除容器内部从宿主机映射过来的看门狗节点，防止 procd 误触
+rm -f /dev/watchdog /dev/watchdog0 2>/dev/null
+mknod /dev/watchdog c 1 3 2>/dev/null || true
+mknod /dev/watchdog0 c 1 3 2>/dev/null || true
+EOF
+    chmod +x ${tmp_path}/etc/preinit_block_watchdog.sh
+
+    # 将该脚本挂载到 OpenWrt preinit 初始化阶段的最最开头
+    if [ -f "${tmp_path}/lib/preinit/00_preinit.conf" ]; then
+        sed -i '1i\/etc/preinit_block_watchdog.sh' ${tmp_path}/lib/preinit/00_preinit.conf
+    fi
 }
 
 make_dockerimg() {
