@@ -196,7 +196,6 @@ EOF
     chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
     # ==============================================================================
 }
-}
 
 make_dockerimg() {
     cd ${tmp_path}
