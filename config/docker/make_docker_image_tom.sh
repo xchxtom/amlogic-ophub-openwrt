@@ -144,6 +144,34 @@ adjust_settings() {
         echo " Board: docker | Production Date: $(date +%Y-%m-%d)" >>${tmp_path}/etc/banner
         echo "───────────────────────────────────────────────────────────────────────" >>${tmp_path}/etc/banner
     }
+    # ==============================================================================
+    # ⬇️【新增防宿主机重启补丁】替换 reboot / poweroff / halt 命令 ⬇️
+    # ==============================================================================
+    echo -e "${INFO} Patching reboot/poweroff commands for Docker safety..."
+    
+    # 1. 删除指向 Busybox/procd 的原有软链接
+    rm -f ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
+
+    # 2. 写入安全的 reboot 脚本
+    cat << 'EOF' > ${tmp_path}/sbin/reboot
+#!/bin/sh
+echo "[Docker-Safety] Container reboot requested. Terminating PID 1..."
+sync
+kill -TERM 1 2>/dev/null || kill -KILL 1
+EOF
+
+    # 3. 写入安全的 poweroff 脚本
+    cat << 'EOF' > ${tmp_path}/sbin/poweroff
+#!/bin/sh
+echo "[Docker-Safety] Container poweroff requested. Stopping PID 1..."
+sync
+kill -TERM 1 2>/dev/null || kill -KILL 1
+EOF
+
+    # 4. 建立链接并赋予执行权限
+    ln -sf reboot ${tmp_path}/sbin/halt
+    chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
+    # ==============================================================================
 }
 
 make_dockerimg() {
