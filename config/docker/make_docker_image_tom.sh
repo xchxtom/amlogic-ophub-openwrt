@@ -201,6 +201,21 @@ EOF
 
     ln -sf reboot ${tmp_path}/sbin/halt
     chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
+    # ==============================================================================
+    # ⬇️【网络配置】：使用 sed 将 lan 修改为 DHCP 模式 ⬇️
+    # ==============================================================================
+    if [ -f "${tmp_path}/etc/config/network" ]; then
+        echo -e "${INFO} Converting lan interface to DHCP..."
+        # 将 lan 区域的 proto 修改为 dhcp
+        sed -i "/config interface 'lan'/,/config / s/option proto '.*/option proto 'dhcp'/" ${tmp_path}/etc/config/network
+        # 删除 lan 区域下的静态 IP、子网掩码、网关和 DNS
+        sed -i "/config interface 'lan'/,/config / { /option ipaddr/d; /option netmask/d; /option gateway/d; /option dns/d; }" ${tmp_path}/etc/config/network
+    fi
+    # 禁用 OpenWrt 自身的 DHCP 发牌服务（避免干扰上级主路由）
+    if [ -f "${tmp_path}/etc/config/dhcp" ]; then
+        echo -e "${INFO} Disabling container DHCP server..."
+        sed -i "/config dhcp 'lan'/,/config / s/option ignore '.*/option ignore '1'/" ${tmp_path}/etc/config/dhcp
+    fi
 }
 
 make_dockerimg() {
