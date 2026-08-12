@@ -238,6 +238,13 @@ config interface 'loopback'
 
 config globals 'globals'
 
+# 1. 显式声明 br-lan 桥接设备，将物理接口 eth0 加入桥接
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'eth0'
+
+# 2. 将 lan 接口绑定到 br-lan 并启用 DHCP 客户端
 config interface 'lan'
 	option device 'br-lan'
 	option proto 'dhcp'
