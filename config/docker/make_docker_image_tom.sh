@@ -248,6 +248,7 @@ config device
 config interface 'lan'
 	option device 'br-lan'
 	option proto 'dhcp'
+	option ifname 'eth0'
 EOF
     fi
     # 禁用 OpenWrt 自身的 DHCP 发牌服务（避免干扰上级主路由）
