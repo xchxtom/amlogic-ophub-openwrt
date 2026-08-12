@@ -202,14 +202,46 @@ EOF
     ln -sf reboot ${tmp_path}/sbin/halt
     chmod +x ${tmp_path}/sbin/reboot ${tmp_path}/sbin/poweroff ${tmp_path}/sbin/halt
     # ==============================================================================
-    # ⬇️【网络配置】：使用 sed 将 lan 修改为 DHCP 模式 ⬇️
+    # ⬇️【网络配置】：保持 br-lan 桥接，转换为 DHCP 客户端模式 ⬇️
     # ==============================================================================
-    if [ -f "${tmp_path}/etc/config/network" ]; then
-        echo -e "${INFO} Converting lan interface to DHCP..."
-        # 将 lan 区域的 proto 修改为 dhcp
-        sed -i "/config interface 'lan'/,/config / s/option proto '.*/option proto 'dhcp'/" ${tmp_path}/etc/config/network
-        # 删除 lan 区域下的静态 IP、子网掩码、网关和 DNS
-        sed -i "/config interface 'lan'/,/config / { /option ipaddr/d; /option netmask/d; /option gateway/d; /option dns/d; }" ${tmp_path}/etc/config/network
+    NET_FILE="${tmp_path}/etc/config/network"
+
+    # 如果是无效软链接，强制删除以防写入报错
+    if [ -L "${NET_FILE}" ] && [ ! -e "${NET_FILE}" ]; then
+        echo -e "${WARN} Detected broken symlink at ${NET_FILE}, removing it..."
+        rm -f "${NET_FILE}"
+    fi
+
+    if [ -f "${NET_FILE}" ]; then
+        echo -e "${INFO} Modifying existing network config..."
+        
+        # 1. 将 lan 区域的 static 修改为 dhcp
+        sed -i "/config interface 'lan'/,/config / s/option proto '.*/option proto 'dhcp'/" "${NET_FILE}"
+        
+        # 2. 清理所有静态 IP 字段（包含 list ipaddr 和 option ipaddr）
+        sed -i "/config interface 'lan'/,/config / { 
+            /list ipaddr/d
+            /option ipaddr/d
+            /option netmask/d
+            /option gateway/d
+            /option dns/d
+            /option ip6assign/d
+        }" "${NET_FILE}"
+    else
+        echo -e "${INFO} Creating new network config with br-lan in DHCP mode..."
+        cat << 'EOF' > "${NET_FILE}"
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'dhcp'
+EOF
     fi
     # 禁用 OpenWrt 自身的 DHCP 发牌服务（避免干扰上级主路由）
     if [ -f "${tmp_path}/etc/config/dhcp" ]; then
